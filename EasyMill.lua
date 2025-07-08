@@ -1,4 +1,4 @@
--- EasyMill - Functional Part
+-- EasyMill.lua
 local EasyMill = {}
 
 -- Data

@@ -40,7 +40,7 @@ function EasyMillUI:createMainFrame()
 
     self.frame.title = self.frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     self.frame.title:SetPoint("CENTER", self.frame.TitleBg, "CENTER")
-    self.frame.title:SetText("EasyMill")
+    self.frame.title:SetText("EasyMill " .. GetAddOnMetadata("EasyMill", "Version"))
 
     self:createScrollFrame()
     self:createNoticeText()
@@ -277,7 +277,9 @@ function EasyMillUI:createItemBox(id, data, xPos, yPos)
         btn:SetPoint("BOTTOMRIGHT", -5, 5)
 
         btn:SetAttribute("type", "macro")
-        btn:SetAttribute("macrotext", string.format("/cast Milling\n/use item:%d", id))
+        -- Simple macro - autoloot is controlled by the checkbox
+        local macroText = string.format("/cast Milling\n/use item:%d", id)
+        btn:SetAttribute("macrotext", macroText)
 
         local ntex = btn:CreateTexture()
         ntex:SetTexture("Interface/Buttons/UI-Panel-Button-Up")
@@ -337,7 +339,7 @@ function EasyMillUI:createTestDataDropdown()
         local info = UIDropDownMenu_CreateInfo()
         
         -- Reset option
-        info.text = "Reset"
+        info.text = "Stop testing"
         info.value = 0
         info.func = OnClick
         info.checked = nil
@@ -355,6 +357,41 @@ function EasyMillUI:createTestDataDropdown()
     end
     
     UIDropDownMenu_Initialize(dropdown, initialize)
+    
+    -- Create autoloot checkbox
+    local autolootCheckbox = CreateFrame("CheckButton", "EasyMillAutolootCheckbox", self.frame, "InterfaceOptionsCheckButtonTemplate")
+    autolootCheckbox:SetPoint("RIGHT", dropdown, "LEFT", -62, 2)
+    autolootCheckbox:SetSize(24, 24)
+    
+    local autolootLabel = autolootCheckbox:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    autolootLabel:SetPoint("LEFT", autolootCheckbox, "RIGHT", 0, 1)
+    autolootLabel:SetText("Auto-loot")
+    autolootLabel:SetTextColor(1, 1, 1)
+    
+    -- Set checkbox to current autoloot setting
+    local currentAutoloot = GetCVar("autoLootDefault")
+    autolootCheckbox:SetChecked(currentAutoloot == "1")
+    
+    autolootCheckbox:SetScript("OnClick", function(self)
+        -- Directly set the autoloot cvar based on checkbox state
+        if self:GetChecked() then
+            SetCVar("autoLootDefault", "1")
+        else
+            SetCVar("autoLootDefault", "0")
+        end
+    end)
+    
+    -- Tooltip for checkbox
+    autolootCheckbox:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:AddLine("Toggle auto-loot setting")
+        GameTooltip:AddLine("Controls your character's auto-loot behavior", 1, 1, 1)
+        GameTooltip:Show()
+    end)
+    
+    autolootCheckbox:SetScript("OnLeave", function(self)
+        GameTooltip:Hide()
+    end)
 end
 
 -- Auctionator notice text
