@@ -18,9 +18,38 @@ EasyMill.millableItemIDs = {
 EasyMill.waitingForInfo = false
 EasyMill.itemData = {}
 
+-- Minimap button data object
+local EasyMillLDB = LibStub("LibDataBroker-1.1"):NewDataObject("EasyMill", {
+    type = "data source",
+    text = "EasyMill",
+    icon = "Interface\\Icons\\Ability_miling",
+    OnClick = function(self, btn)
+        if btn == "LeftButton" then
+            if EasyMillFrame:IsShown() then
+                EasyMillFrame:Hide()
+            else
+                EasyMillFrame:Show()
+                EasyMillUI:updateUI()
+            end
+        end
+    end,
+    OnTooltipShow = function(tooltip)
+        tooltip:AddLine("EasyMill")
+        tooltip:AddLine("|cffffff00Left-click:|r Toggle EasyMill window")
+        tooltip:AddLine("|cffffff00Drag:|r Move this button")
+    end,
+})
+
 -- Initialize item data
 for _, id in ipairs(EasyMill.millableItemIDs) do
     EasyMill.itemData[id] = { count = 0 }
+end
+
+-- Initialize minimap icon
+function EasyMill:InitializeMinimapIcon()
+    if LibStub("LibDBIcon-1.0", true) then
+        LibStub("LibDBIcon-1.0"):Register("EasyMill", EasyMillLDB, {})
+    end
 end
 
 -- Price functions
@@ -128,6 +157,7 @@ end
 local eventFrame = CreateFrame("Frame")
 eventFrame:RegisterEvent("BAG_UPDATE_DELAYED")
 eventFrame:RegisterEvent("GET_ITEM_INFO_RECEIVED")
+eventFrame:RegisterEvent("ADDON_LOADED")
 eventFrame:SetScript("OnEvent", function(self, event, ...)
     if event == "BAG_UPDATE_DELAYED" then
         if EasyMillFrame and EasyMillFrame:IsShown() then
@@ -137,6 +167,11 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         EasyMill.waitingForInfo = false
         if EasyMillFrame and EasyMillFrame:IsShown() then
             EasyMillUI:updateUI()
+        end
+    elseif event == "ADDON_LOADED" then
+        local addonName = ...
+        if addonName == "EasyMill" then
+            EasyMill:InitializeMinimapIcon()
         end
     end
 end)
