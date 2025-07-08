@@ -183,49 +183,6 @@ local castInfo = {
     spellName = GetSpellInfo(51005), -- Milling
 }
 
-local castBarFrame = CreateFrame("Frame")
-castBarFrame:RegisterEvent("UNIT_SPELLCAST_START")
-castBarFrame:RegisterEvent("UNIT_SPELLCAST_STOP")
-castBarFrame:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
-castBarFrame:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED")
-castBarFrame:SetScript("OnEvent", function(_, event, unit, castGUID, spellID)
-    if unit ~= "player" then return end
-    if spellID ~= 51005 then return end -- Only track Milling
-
-    if event == "UNIT_SPELLCAST_START" and castInfo.targetFrame then
-        castInfo.active = true
-        castInfo.targetFrame.castBar:SetValue(0)
-        castInfo.targetFrame.castBar:SetStatusBarColor(0, 0.6, 1)
-        castInfo.targetFrame.castBar:Show()
-
-        local duration = 1
-        local elapsed = 0
-
-        castInfo.targetFrame.castBar:SetScript("OnUpdate", function(self, delta)
-            elapsed = elapsed + delta
-            if elapsed >= duration then
-                self:SetValue(1)
-                self:SetScript("OnUpdate", nil)
-            else
-                self:SetValue(elapsed / duration)
-            end
-        end)
-    elseif event == "UNIT_SPELLCAST_SUCCEEDED" and castInfo.targetFrame then
-        local bar = castInfo.targetFrame.castBar
-        if bar then
-            bar:SetValue(1)
-            bar:SetStatusBarColor(0, 1, 0) -- Green on success
-            C_Timer.After(0.5, function() bar:Hide() end)
-        end
-    elseif event == "UNIT_SPELLCAST_STOP" or event == "UNIT_SPELLCAST_INTERRUPTED" then
-        if castInfo.targetFrame and castInfo.targetFrame.castBar then
-            castInfo.targetFrame.castBar:Hide()
-            castInfo.targetFrame.castBar:SetScript("OnUpdate", nil)
-        end
-    end
-end)
-
-
 -- Slash command
 SLASH_EASYMILL1 = "/mill"
 SlashCmdList["EASYMILL"] = function(msg)
