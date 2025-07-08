@@ -45,6 +45,7 @@ function EasyMillUI:createMainFrame()
     self:createScrollFrame()
     self:createNoticeText()
     self:createTestDataDropdown()
+    self:setupCastEvents()
 end
 
 -- Create scroll frame
@@ -153,6 +154,114 @@ function EasyMillUI:createExpansionHeader(name, yOffset)
     
     table.insert(buttons, header)
     return header
+end
+
+function EasyMillUI:createCastBar(parentFrame)
+    if parentFrame.castBar then return end
+
+    local bar = CreateFrame("StatusBar", nil, parentFrame)
+    bar:SetSize(175, 3)  -- Match item width, very thin height
+    bar:SetPoint("BOTTOM", parentFrame, "TOP", 0, 2)
+    bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+    bar:SetStatusBarColor(0.2, 0.6, 1, 1) -- Blue
+    bar:SetMinMaxValues(0, 1)
+    bar:SetValue(0)
+    bar:Hide()
+
+    -- Background
+    local bg = bar:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints()
+    bg:SetTexture("Interface\\TargetingFrame\\UI-StatusBar")
+    bg:SetVertexColor(0.2, 0.2, 0.2, 0.8)
+
+    parentFrame.castBar = bar
+end
+
+function EasyMillUI:showCastBar(parentFrame)
+    local bar = parentFrame.castBar
+    if not bar then return end
+
+    -- Clear any existing OnUpdate script to prevent conflicts
+    bar:SetScript("OnUpdate", nil)
+    
+    bar:SetStatusBarColor(0.2, 0.6, 1, 1) -- Blue
+    bar:SetValue(0)
+    bar:Show()
+
+    -- Start monitoring actual cast progress with OnUpdate only
+    bar:SetScript("OnUpdate", function(self, elapsed)
+        local name, text, texture, startTime, endTime, isTradeSkill = UnitCastingInfo("player")
+        
+        if name and name == "Milling" then
+            -- Calculate real progress
+            local currentTime = GetTime() * 1000
+            local progress = (currentTime - startTime) / (endTime - startTime)
+            progress = math.max(0, math.min(progress, 1))
+            
+            self:SetValue(progress)
+        else
+            -- Cast finished successfully - stop monitoring and show green flash
+            self:SetScript("OnUpdate", nil)
+            self:SetStatusBarColor(0.2, 1, 0.2, 1) -- Green
+            self:SetValue(1)
+            
+            C_Timer.After(0.6, function()
+                if self then
+                    self:Hide()
+                end
+            end)
+        end
+    end)
+end
+
+function EasyMillUI:setupCastEvents()
+    if self.castEventFrame then return end
+
+    self.castEventFrame = CreateFrame("Frame")
+    self.castEventFrame:RegisterEvent("UNIT_SPELLCAST_START")
+    self.castEventFrame:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED")
+    self.castEventFrame:RegisterEvent("UNIT_SPELLCAST_FAILED")
+
+    self.castEventFrame:SetScript("OnEvent", function(_, event, unit, castGUID, spellID)
+        if unit ~= "player" then return end
+
+        local spellName = GetSpellInfo(spellID)
+        if spellName == "Milling" then
+            if event == "UNIT_SPELLCAST_START" then
+                if EasyMillUI.lastMilledFrame and EasyMillUI.lastMilledFrame.castBar then
+                    EasyMillUI:showCastBar(EasyMillUI.lastMilledFrame)
+                end
+            elseif event == "UNIT_SPELLCAST_INTERRUPTED" or event == "UNIT_SPELLCAST_FAILED" then
+                if EasyMillUI.lastMilledFrame and EasyMillUI.lastMilledFrame.castBar then
+                    local bar = EasyMillUI.lastMilledFrame.castBar
+                    bar:SetScript("OnUpdate", nil)
+                    
+                    -- Red flash for cancelled/failed cast
+                    bar:SetStatusBarColor(1, 0.2, 0.2, 1) -- Red
+                    bar:SetValue(bar:GetValue())
+                    
+                    C_Timer.After(0.6, function()
+                        if bar then
+                            bar:Hide()
+                        end
+                    end)
+                end
+            end
+        end
+    end)
+end
+
+function EasyMillUI:completeCastBar(parentFrame, success)
+    local bar = parentFrame.castBar
+    if not bar then return end
+
+    bar:SetScript("OnUpdate", nil)
+    bar:SetValue(bar:GetMinMaxValues())
+    bar:SetStatusBarColor(success and 0 or 1, success and 1 or 0, 0) -- Green or Red
+
+    C_Timer.After(0.8, function()
+        bar:Hide()
+    end)
 end
 
 -- Create a compact item box
@@ -281,6 +390,12 @@ function EasyMillUI:createItemBox(id, data, xPos, yPos)
         local macroText = string.format("/cast Milling\n/use item:%d", id)
         btn:SetAttribute("macrotext", macroText)
 
+        btn:SetScript("PostClick", function(self, button)
+            if button == "LeftButton" then
+                EasyMillUI.lastMilledFrame = item
+            end
+        end)
+
         local ntex = btn:CreateTexture()
         ntex:SetTexture("Interface/Buttons/UI-Panel-Button-Up")
         ntex:SetTexCoord(0, 0.625, 0, 0.6875)
@@ -306,6 +421,7 @@ function EasyMillUI:createItemBox(id, data, xPos, yPos)
     end
 
     table.insert(buttons, item)
+    self:createCastBar(item)
 end
 
 -- Create test data dropdown
