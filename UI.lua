@@ -43,6 +43,8 @@ function EasyMillUI:createMainFrame()
     self.frame.title:SetText("EasyMill")
 
     self:createScrollFrame()
+    self:createNoticeText()
+    self:createTestDataDropdown()
 end
 
 -- Create scroll frame
@@ -198,47 +200,69 @@ function EasyMillUI:createItemBox(id, data, xPos, yPos)
     name:SetPoint("TOPLEFT", iconButton, "TOPRIGHT", 5, 0)
     name:SetPoint("TOPRIGHT", item, "TOPRIGHT", -5, -5)
     name:SetJustifyH("LEFT")
+    name:SetMaxLines(1)
     name:SetText((data.name or ("ItemID: " .. id)) .. " (" .. data.count .. ")")
 
     local profitText = item:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    profitText:SetPoint("TOPLEFT", iconButton, "TOPRIGHT", 5, -15)
-    profitText:SetPoint("TOPRIGHT", item, "TOPRIGHT", -5, -20)
+    profitText:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 0, -6)
+    profitText:SetPoint("TOPRIGHT", item, "TOPRIGHT", -5, -17)
     profitText:SetJustifyH("LEFT")
+    profitText:SetMaxLines(1)
 
-    local profit, millingPrice, herbPrice = EasyMill:getProfit(id)
-    if profit then
-        local stacks = math.floor(data.count / 5)
-        local totalProfit = profit * stacks
+    if Auctionator and Auctionator.API.v1.GetAuctionPriceByItemLink then 
+        local profit, millingPrice, herbPrice = EasyMill:getProfit(id)
+        if profit then
+            local stacks = data.count > 0 and math.floor(data.count / 5) or 1
+            local totalProfit = profit * stacks
 
-        local absProfit = math.abs(totalProfit)
-        local gold = math.floor(absProfit / 10000)
-        local silver = math.floor((absProfit % 10000) / 100)
-        local copper = absProfit % 100
+            local absProfit = math.abs(totalProfit)
+            local gold = math.floor(absProfit / 10000)
+            local silver = math.floor((absProfit % 10000) / 100)
+            local copper = absProfit % 100
 
-        if totalProfit >= 0 then
-            -- Profit: use WoW gold/silver/copper colors
-            local goldText = gold > 0 and string.format("|cffffd700%dg|r", gold) or ""
-            local silverText = silver > 0 and string.format("|cffc7c7cf%ds|r", silver) or ""
-            local copperText = copper > 0 and string.format("|cffeda55f%dc|r", copper) or ""
-            
-            local parts = {}
-            if gold > 0 then table.insert(parts, goldText) end
-            if silver > 0 then table.insert(parts, silverText) end
-            if copper > 0 then table.insert(parts, copperText) end
-            
-            local moneyText = table.concat(parts, " ")
-            if moneyText == "" then moneyText = "|cffc7c7cf0s|r" end
-            
-            profitText:SetText("+" .. moneyText)
+            if totalProfit >= 0 then
+                -- Profit: use WoW gold/silver/copper colors or gray if no herbs
+                local colorPrefix = data.count > 0 and "" or "|cff808080"
+                local colorSuffix = data.count > 0 and "" or "|r"
+                
+                local goldText = gold > 0 and string.format("%s|cffffd700%dg|r%s", colorPrefix, gold, colorSuffix) or ""
+                local silverText = silver > 0 and string.format("%s|cffc7c7cf%ds|r%s", colorPrefix, silver, colorSuffix) or ""
+                local copperText = copper > 0 and string.format("%s|cffeda55f%dc|r%s", colorPrefix, copper, colorSuffix) or ""
+                
+                if data.count == 0 then
+                    goldText = gold > 0 and string.format("|cff808080%dg|r", gold) or ""
+                    silverText = silver > 0 and string.format("|cff808080%ds|r", silver) or ""
+                    copperText = copper > 0 and string.format("|cff808080%dc|r", copper) or ""
+                end
+                
+                local parts = {}
+                if gold > 0 then table.insert(parts, goldText) end
+                if silver > 0 then table.insert(parts, silverText) end
+                if copper > 0 then table.insert(parts, copperText) end
+                
+                local moneyText = table.concat(parts, " ")
+                if moneyText == "" then 
+                    moneyText = data.count > 0 and "|cffc7c7cf0s|r" or "|cff8080800s|r"
+                end
+                
+                profitText:SetText("+" .. moneyText)
+            else
+                -- Loss: all red or gray if no herbs
+                if data.count > 0 then
+                    profitText:SetText(string.format("|cffff0000-%dg %ds %dc|r", gold, silver, copper))
+                else
+                    profitText:SetText(string.format("|cff808080-%dg %ds %dc|r", gold, silver, copper))
+                end
+            end
         else
-            -- Loss: all red
-            profitText:SetText(string.format("|cffff0000-%dg %ds %dc|r", gold, silver, copper))
+            profitText:SetText("|cffffff00No data|r")
         end
     else
-        profitText:SetText("|cffffff00No data|r")
+        profitText:SetText("")
     end
 
-    if data.count >= 5 then
+    -- Only show Mill button if we have enough herbs AND not in test mode
+    if data.count >= 5 and not self.testMode then
         local btn = CreateFrame("Button", nil, item, "SecureActionButtonTemplate")
         btn:SetSize(70, 20)
         btn:SetPoint("BOTTOMRIGHT", -5, 5)
@@ -267,14 +291,121 @@ function EasyMillUI:createItemBox(id, data, xPos, yPos)
         local text = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
         text:SetPoint("CENTER", 0, 0)
         text:SetText("Mill")
+        text:SetTextColor(1, 1, 1)
     end
 
     table.insert(buttons, item)
 end
 
+-- Create test data dropdown
+function EasyMillUI:createTestDataDropdown()
+    local dropdown = CreateFrame("Frame", "EasyMillTestDropdown", self.frame, "UIDropDownMenuTemplate")
+    dropdown:SetPoint("BOTTOMRIGHT", self.frame, "BOTTOMRIGHT", 10, -2)
+    
+    UIDropDownMenu_SetWidth(dropdown, 80)
+    UIDropDownMenu_SetText(dropdown, "Test Data")
+    
+    self.testMode = false
+    
+    local function OnClick(self)
+        local testAmount = self.value
+        
+        if testAmount == 0 then
+            EasyMillUI.testMode = false
+            EasyMill:scanBags()
+        else
+            EasyMillUI.testMode = true
+            for id, data in pairs(EasyMill.itemData) do
+                data.count = testAmount
+            end
+        end
+        
+        UIDropDownMenu_SetSelectedValue(dropdown, testAmount)
+        EasyMillUI:updateUI()
+    end
+    
+    local function initialize(self, level)
+        local info = UIDropDownMenu_CreateInfo()
+        
+        -- Reset option
+        info.text = "Reset"
+        info.value = 0
+        info.func = OnClick
+        info.checked = nil
+        UIDropDownMenu_AddButton(info)
+        
+        local testValues = {100, 250, 500, 2500}
+        for _, amount in ipairs(testValues) do
+            info = UIDropDownMenu_CreateInfo()
+            info.text = string.format("x%d herbs", amount)
+            info.value = amount
+            info.func = OnClick
+            info.checked = nil
+            UIDropDownMenu_AddButton(info)
+        end
+    end
+    
+    UIDropDownMenu_Initialize(dropdown, initialize)
+end
+
+-- Auctionator notice text
+function EasyMillUI:createNoticeText()
+    local noticeFrame = CreateFrame("Frame", nil, self.frame)
+    noticeFrame:SetPoint("BOTTOMLEFT", self.frame, "BOTTOMLEFT", 10, 8)
+    noticeFrame:SetPoint("BOTTOMRIGHT", self.frame, "BOTTOMRIGHT", -120, 8)
+    noticeFrame:SetHeight(16)
+
+    local noticeText = noticeFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    noticeText:SetPoint("LEFT", noticeFrame, "LEFT", 0, 0)
+    noticeText:SetJustifyH("LEFT")
+    noticeText:SetText("|cffffd700Notice:|r |cffffffffThe potential profit data is taken by using|r ")
+
+    -- Create clickable Auctionator link
+    local linkButton = CreateFrame("Button", nil, noticeFrame)
+    linkButton:SetSize(63, 16)
+    linkButton:SetPoint("LEFT", noticeText, "RIGHT", 0, 0)
+    
+    local linkText = linkButton:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    linkText:SetAllPoints()
+    linkText:SetJustifyH("LEFT")
+    linkText:SetText("|cff00ccffAuctionator|r")
+    
+    linkButton:SetScript("OnClick", function()
+        local editBox = ChatEdit_ChooseBoxForSend()
+        if editBox then
+            editBox:Show()
+            editBox:SetText("https://www.curseforge.com/wow/addons/auctionator")
+            editBox:HighlightText()
+            print("|cff00ccffEasyMill:|r Auctionator download link copied to chat. Press Ctrl+C to copy it.")
+        end
+    end)
+    
+    linkButton:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:AddLine("Click to copy Auctionator download link")
+        GameTooltip:AddLine("https://www.curseforge.com/wow/addons/auctionator", 1, 1, 1)
+        GameTooltip:Show()
+        linkText:SetText("|cff66ddffAuctionator|r")
+    end)
+    
+    linkButton:SetScript("OnLeave", function(self)
+        GameTooltip:Hide()
+        linkText:SetText("|cff00ccffAuctionator|r")
+    end)
+
+    local remainingText = noticeFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    remainingText:SetPoint("LEFT", linkButton, "RIGHT", 0, 0)
+    remainingText:SetJustifyH("LEFT")
+    remainingText:SetText("|cffffffff. It's suggested to scan regularly to keep the data up-to-date.|r")
+end
+
 -- Update the UI
 function EasyMillUI:updateUI()
-    EasyMill:scanBags()
+    -- Only scan bags if we're not in test mode
+    if not self.testMode then
+        EasyMill:scanBags()
+    end
+    
     self:clearButtons()
 
     -- Organize items by expansion using existing data
@@ -285,6 +416,7 @@ function EasyMillUI:updateUI()
         {name = "Cata", items = {}}
     }
     
+    -- Include ALL herbs, not just ones in bags
     for _, id in ipairs(EasyMill.millableItemIDs) do
         local data = EasyMill.itemData[id]
         if data then
