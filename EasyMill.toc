@@ -1,0 +1,8 @@
+## Interface: 50500
+## Title: EasyMill
+## Notes: Automatically detects millable herbs and displays estimated profit
+## Author: Limitedby
+
+Table.lua
+EasyMill.lua
+UI.lua
