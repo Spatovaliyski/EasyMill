@@ -26,7 +26,7 @@ end
 -- Create main frame
 function EasyMillUI:createMainFrame()
     self.frame = CreateFrame("Frame", "EasyMillFrame", UIParent, "BasicFrameTemplateWithInset")
-    self.frame:SetSize(900, 600)  -- Wide frame to accommodate 6 items per row
+    self.frame:SetSize(952, 600)
     self.frame:SetPoint("CENTER")
     self.frame:SetMovable(true)
     self.frame:EnableMouse(true)
@@ -40,7 +40,7 @@ function EasyMillUI:createMainFrame()
 
     self.frame.title = self.frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     self.frame.title:SetPoint("CENTER", self.frame.TitleBg, "CENTER")
-    self.frame.title:SetText("Auto Miller")
+    self.frame.title:SetText("EasyMill")
 
     self:createScrollFrame()
 end
@@ -145,7 +145,7 @@ end
 -- Create expansion header
 function EasyMillUI:createExpansionHeader(name, yOffset)
     local header = self.scrollChild:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
-    header:SetPoint("TOPLEFT", 20, yOffset)
+    header:SetPoint("TOPLEFT", 16, yOffset)
     header:SetText(name)
     header:SetTextColor(1, 0.82, 0)  -- Gold color
     
@@ -155,7 +155,7 @@ end
 
 -- Create a compact item box
 function EasyMillUI:createItemBox(id, data, xPos, yPos)
-    local itemWidth = 160
+    local itemWidth = 175
     local itemHeight = 80
     
     local item = CreateFrame("Frame", nil, self.scrollChild)
@@ -168,20 +168,40 @@ function EasyMillUI:createItemBox(id, data, xPos, yPos)
     bg:SetTexture("Interface\\Tooltips\\UI-Tooltip-Background")
     bg:SetVertexColor(0.1, 0.1, 0.1, 0.8)
 
-    local icon = item:CreateTexture(nil, "ARTWORK")
-    icon:SetSize(32, 32)
-    icon:SetPoint("TOPLEFT", 5, -5)
+    -- Make icon clickable for tooltip
+    local iconButton = CreateFrame("Button", nil, item)
+    iconButton:SetSize(32, 32)
+    iconButton:SetPoint("TOPLEFT", 5, -5)
+    iconButton:EnableMouse(true)
+
+    local icon = iconButton:CreateTexture(nil, "ARTWORK")
+    icon:SetAllPoints()
     icon:SetTexture(data.icon or 134400)
     icon:SetDesaturated(data.count < 5)
 
+    -- Tooltip functionality
+    iconButton:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        if data.link then
+            GameTooltip:SetHyperlink(data.link)
+        else
+            GameTooltip:SetItemByID(id)
+        end
+        GameTooltip:Show()
+    end)
+
+    iconButton:SetScript("OnLeave", function(self)
+        GameTooltip:Hide()
+    end)
+
     local name = item:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    name:SetPoint("TOPLEFT", icon, "TOPRIGHT", 5, 0)
+    name:SetPoint("TOPLEFT", iconButton, "TOPRIGHT", 5, 0)
     name:SetPoint("TOPRIGHT", item, "TOPRIGHT", -5, -5)
     name:SetJustifyH("LEFT")
     name:SetText((data.name or ("ItemID: " .. id)) .. " (" .. data.count .. ")")
 
     local profitText = item:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    profitText:SetPoint("TOPLEFT", icon, "TOPRIGHT", 5, -15)
+    profitText:SetPoint("TOPLEFT", iconButton, "TOPRIGHT", 5, -15)
     profitText:SetPoint("TOPRIGHT", item, "TOPRIGHT", -5, -20)
     profitText:SetJustifyH("LEFT")
 
@@ -265,7 +285,6 @@ function EasyMillUI:updateUI()
         {name = "Cata", items = {}}
     }
     
-    -- Sort ALL items into expansions (not just those with count > 0)
     for _, id in ipairs(EasyMill.millableItemIDs) do
         local data = EasyMill.itemData[id]
         if data then
@@ -280,24 +299,22 @@ function EasyMillUI:updateUI()
     end
 
     local currentY = -10
-    local itemWidth = 160
+    local itemWidth = 175
     local itemHeight = 80
     local itemsPerRow = 5
-    local itemSpacing = 5
+    local itemSpacing = 3
     
     for _, expansion in ipairs(expansions) do
         if #expansion.items > 0 then
-            -- Create expansion header
             self:createExpansionHeader(expansion.name, currentY)
-            currentY = currentY - 35
+            currentY = currentY - 25
             
-            -- Create items in grid layout (6 per row)
             local itemIndex = 0
             for _, item in ipairs(expansion.items) do
                 local row = math.floor(itemIndex / itemsPerRow)
                 local col = itemIndex % itemsPerRow
                 
-                local xPos = 16 + (col * (itemWidth + itemSpacing))
+                local xPos = 10 + (col * (itemWidth + itemSpacing))
                 local yPos = currentY - (row * (itemHeight + itemSpacing))
                 
                 self:createItemBox(item.id, item.data, xPos, yPos)
@@ -306,7 +323,7 @@ function EasyMillUI:updateUI()
             
             -- Calculate how many rows were used and move currentY accordingly
             local rowsUsed = math.ceil(#expansion.items / itemsPerRow)
-            currentY = currentY - (rowsUsed * (itemHeight + itemSpacing)) - 20
+            currentY = currentY - (rowsUsed * (itemHeight + itemSpacing)) - 15
         end
     end
 end
