@@ -44,7 +44,7 @@ function MainFrame:createScrollFrame()
 
 	scrollFrame:EnableMouseWheel(true)
 	scrollFrame:SetScript("OnMouseWheel", function(self, delta)
-		local scrollAmount = 25
+		local scrollAmount = 35
 		local targetValue = self.scrollIsAnimating and self.targetScrollValue or self:GetVerticalScroll()
 
 		if delta < 0 then
