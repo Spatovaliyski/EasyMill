@@ -18,9 +18,8 @@ local function getExpansionForItem(itemID)
     -- Cata herbs (52xxx range)
     elseif itemID >= 52983 and itemID <= 52988 then
         return "Cataclysm"
-    -- MoP herbs (72xxx-79xxx range)
-    -- elseif itemID >= 72234 and itemID <= 79011 then
-    --     return "Mists of Pandaria"
+    -- MoP herbs (72xxx-79xxx range) 
+    elseif itemID >= 72234 and itemID <= 79011 then
     else
         return "Unknown"
     end
@@ -220,10 +219,9 @@ function ItemDisplay:updateUI()
     -- Organize items by expansion using existing data
     local expansions = {
         {name = "Vanilla", items = {}},
-        {name = "The Burning Crusade", items = {}},
-        {name = "Wrath of the Lich King", items = {}},
-        {name = "Cataclysm", items = {}},
-        {name = "Mists of Pandaria", items = {}}
+        {name = "TBC", items = {}},
+        {name = "Wrath", items = {}},
+        {name = "Cata", items = {}}
     }
     
     -- Include ALL herbs, not just ones in bags
