@@ -11,4 +11,10 @@ libs\LibDBIcon-1.0\LibDBIcon-1.0\LibDBIcon-1.0.lua
 
 Table.lua
 EasyMill.lua
+MainFrame.lua
+utils\AutoLoot.lua
+utils\CastBar.lua
+utils\TestData.lua
+utils\NoticeText.lua
+utils\ItemDisplay.lua
 UI.lua

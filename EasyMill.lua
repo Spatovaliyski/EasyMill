@@ -28,8 +28,7 @@ local EasyMillLDB = LibStub("LibDataBroker-1.1"):NewDataObject("EasyMill", {
             if EasyMillFrame:IsShown() then
                 EasyMillFrame:Hide()
             else
-                EasyMillFrame:Show()
-                EasyMillUI:updateUI()
+                EasyMillUI:showFrame()
             end
         end
     end,
@@ -189,8 +188,7 @@ SlashCmdList["EASYMILL"] = function(msg)
     if EasyMillFrame:IsShown() then
         EasyMillFrame:Hide()
     else
-        EasyMillFrame:Show()
-        EasyMillUI:updateUI()
+        EasyMillUI:showFrame()
     end
 end
 
