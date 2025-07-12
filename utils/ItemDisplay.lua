@@ -4,6 +4,50 @@ local ItemDisplay = {}
 -- UI Elements
 local buttons = {}
 
+-- Helper function to get primary pigments for an herb
+local function getPrimaryPigments(herbID)
+	local herbIDStr = tostring(herbID)
+	if not MillTable or not MillTable[herbIDStr] then
+		return {}
+	end
+
+	local millData = MillTable[herbIDStr]
+	local pigments = {}
+
+	-- Get pigments from mill data
+	for itemIDStr, dropData in pairs(millData) do
+		local itemID = tonumber(itemIDStr)
+		if itemID and type(dropData) == "table" and #dropData > 0 then
+			-- Calculate average drop rate from the drop data
+			local totalRate = 0
+			for _, rate in ipairs(dropData) do
+				totalRate = totalRate + (rate or 0)
+			end
+
+			if totalRate > 0 then
+				table.insert(pigments, {
+					id = itemID,
+					dropRate = totalRate * 100, -- Convert to percentage
+					amounts = dropData,
+				})
+			end
+		end
+	end
+
+	-- Sort by drop rate (highest first) and take top 2
+	table.sort(pigments, function(a, b)
+		return (a.dropRate or 0) > (b.dropRate or 0)
+	end)
+
+	-- Return top 2 most common pigments
+	local result = {}
+	for i = 1, math.min(2, #pigments) do
+		table.insert(result, pigments[i])
+	end
+
+	return result
+end
+
 -- Expansion categorization based on item level ranges
 local function getExpansionForItem(itemID)
 	-- Vanilla herbs (item IDs mostly under 15000)
@@ -19,8 +63,8 @@ local function getExpansionForItem(itemID)
 	elseif itemID >= 52983 and itemID <= 52988 then
 		return "Cataclysm"
 	-- MoP herbs (72xxx-79xxx range)
-	-- elseif itemID >= 72234 and itemID <= 79011 then
-	--     return "Mists of Pandaria"
+	elseif itemID >= 72234 and itemID <= 79011 then
+		return "Mists of Pandaria"
 	else
 		return "Unknown"
 	end
@@ -48,7 +92,7 @@ end
 -- Create a compact item box
 function ItemDisplay:createItemBox(id, data, xPos, yPos)
 	local itemWidth = 175
-	local itemHeight = 80
+	local itemHeight = 75
 
 	local item = CreateFrame("Frame", nil, MainFrame.scrollChild)
 	item:SetSize(itemWidth, itemHeight)
@@ -168,10 +212,61 @@ function ItemDisplay:createItemBox(id, data, xPos, yPos)
 		profitText:SetText("")
 	end
 
+	-- Add pigment display (to the left of where Mill button will be)
+	local pigments = getPrimaryPigments(id)
+	if #pigments > 0 then
+		local pigmentContainer = CreateFrame("Frame", nil, item)
+		pigmentContainer:SetSize(90, 20)
+		pigmentContainer:SetPoint("BOTTOMLEFT", item, "BOTTOMLEFT", 5, 5)
+
+		local xOffset = 0
+		for i, pigment in ipairs(pigments) do
+			-- Get pigment info
+			local pigmentName, pigmentLink, _, _, _, _, _, _, _, pigmentIcon = GetItemInfo(pigment.id)
+
+			if pigmentIcon then
+				-- Create pigment icon
+				local pigmentButton = CreateFrame("Button", nil, pigmentContainer)
+				pigmentButton:SetSize(18, 18)
+				pigmentButton:SetPoint("LEFT", xOffset, 0)
+				pigmentButton:EnableMouse(true)
+
+				local pigmentIconTexture = pigmentButton:CreateTexture(nil, "ARTWORK")
+				pigmentIconTexture:SetAllPoints()
+				pigmentIconTexture:SetTexture(pigmentIcon)
+
+				-- Add tooltip for pigment
+				pigmentButton:SetScript("OnEnter", function(self)
+					GameTooltip:SetOwner(self, "ANCHOR_TOP")
+					if pigmentLink then
+						GameTooltip:SetHyperlink(pigmentLink)
+					else
+						GameTooltip:SetItemByID(pigment.id)
+					end
+					GameTooltip:AddLine(string.format("Drop Rate: %.1f%%", pigment.dropRate or 0), 1, 1, 1)
+					if pigment.amounts and #pigment.amounts > 0 then
+						GameTooltip:AddLine(string.format("Amount: 1-%d", #pigment.amounts), 0.8, 0.8, 0.8)
+					end
+					GameTooltip:Show()
+				end)
+
+				pigmentButton:SetScript("OnLeave", function(self)
+					GameTooltip:Hide()
+				end)
+
+				xOffset = xOffset + 20 -- icon + small gap
+
+				if i >= 4 or xOffset > 72 then
+					break
+				end
+			end
+		end
+	end
+
 	-- Only show Mill button if we have enough herbs AND not in test mode
 	if data.count >= 5 and not (TestData and TestData.testMode) then
 		local btn = CreateFrame("Button", nil, item, "SecureActionButtonTemplate")
-		btn:SetSize(70, 20)
+		btn:SetSize(80, 20)
 		btn:SetPoint("BOTTOMRIGHT", -5, 5)
 
 		btn:SetAttribute("type", "macro")
@@ -218,6 +313,12 @@ end
 
 -- Update the UI
 function ItemDisplay:updateUI()
+	local currentY = -10
+	local itemWidth = 175
+	local itemHeight = 75
+	local itemsPerRow = 5
+	local itemSpacing = 3
+
 	-- Only scan bags if we're not in test mode
 	if not (TestData and TestData.testMode) then
 		EasyMill:scanBags()
@@ -247,12 +348,6 @@ function ItemDisplay:updateUI()
 			end
 		end
 	end
-
-	local currentY = -10
-	local itemWidth = 175
-	local itemHeight = 80
-	local itemsPerRow = 5
-	local itemSpacing = 3
 
 	for _, expansion in ipairs(expansions) do
 		if #expansion.items > 0 then
