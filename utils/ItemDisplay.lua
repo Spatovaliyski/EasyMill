@@ -180,7 +180,7 @@ function ItemDisplay:createItemBox(id, data, xPos, yPos)
 
 		btn:SetScript("PostClick", function(self, button)
 			if button == "LeftButton" and CastBar then
-				CastBar:setLastMilledFrame(item)
+				CastBar:startMilling(item, id)
 			end
 		end)
 
