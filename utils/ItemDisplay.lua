@@ -63,7 +63,7 @@ local function getExpansionForItem(itemID)
 	elseif itemID >= 52983 and itemID <= 52988 then
 		return "Cataclysm"
 	-- MoP herbs (72xxx-79xxx range)
-	elseif itemID >= 72234 and itemID <= 79011 then
+	elseif itemID >= 72234 and itemID <= 89639 then
 		return "Mists of Pandaria"
 	else
 		return "Unknown"
@@ -371,6 +371,9 @@ function ItemDisplay:updateUI()
 			currentY = currentY - (rowsUsed * (itemHeight + itemSpacing)) - 15
 		end
 	end
+
+	local totalHeight = math.abs(currentY) + 20
+	MainFrame.scrollChild:SetHeight(totalHeight)
 end
 
 -- Export the module

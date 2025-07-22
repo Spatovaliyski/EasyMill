@@ -2,62 +2,24 @@
 local EasyMill = {}
 
 -- Data
-EasyMill.millableItemIDs = {
-	-- Vanilla
-	2447,
-	765,
-	785,
-	2450,
-	2452,
-	2453,
-	3355,
-	3356,
-	3357,
-	3358,
-	3369,
-	3818,
-	3820,
-	3821,
-	4625,
-	8831,
-	8836,
-	8838,
-	8839,
-	8845,
-	8846,
-	13463,
-	13464,
-	13465,
-	13466,
-	13467,
-	-- TBC
-	22785,
-	22786,
-	22787,
-	22789,
-	22790,
-	22791,
-	22792,
-	22793,
-	-- Wrath
-	36901,
-	36903,
-	36904,
-	36905,
-	36906,
-	36907,
-	37921,
-	-- Cata
-	52983,
-	52984,
-	52985,
-	52986,
-	52987,
-	52988,
-}
-
+EasyMill.millableItemIDs = {}
 EasyMill.waitingForInfo = false
 EasyMill.itemData = {}
+
+-- Initialize millable item IDs from MillTable
+local function initializeMillableItems()
+	EasyMill.millableItemIDs = {}
+	if MillTable then
+		for herbIDStr, _ in pairs(MillTable) do
+			local herbID = tonumber(herbIDStr)
+			if herbID then
+				table.insert(EasyMill.millableItemIDs, herbID)
+			end
+		end
+		-- Sort the IDs for consistent ordering
+		table.sort(EasyMill.millableItemIDs)
+	end
+end
 
 -- Minimap button data object
 local EasyMillLDB = LibStub("LibDataBroker-1.1"):NewDataObject("EasyMill", {
@@ -69,7 +31,8 @@ local EasyMillLDB = LibStub("LibDataBroker-1.1"):NewDataObject("EasyMill", {
 			if EasyMillFrame:IsShown() then
 				EasyMillFrame:Hide()
 			else
-				EasyMillUI:showFrame()
+				EasyMillFrame:Show()
+				EasyMillUI:updateUI()
 			end
 		end
 	end,
@@ -85,8 +48,18 @@ for _, id in ipairs(EasyMill.millableItemIDs) do
 	EasyMill.itemData[id] = { count = 0 }
 end
 
+local function initializeItemData()
+	initializeMillableItems() -- Call this first to populate the array
+
+	for _, id in ipairs(EasyMill.millableItemIDs) do
+		EasyMill.itemData[id] = { count = 0 }
+	end
+end
+
 -- Initialize minimap icon
 function EasyMill:InitializeMinimapIcon()
+	initializeItemData()
+
 	if LibStub("LibDBIcon-1.0", true) then
 		LibStub("LibDBIcon-1.0"):Register("EasyMill", EasyMillLDB, {})
 	end
@@ -231,7 +204,8 @@ SlashCmdList["EASYMILL"] = function(msg)
 	if EasyMillFrame:IsShown() then
 		EasyMillFrame:Hide()
 	else
-		EasyMillUI:showFrame()
+		EasyMillFrame:Show()
+		EasyMillUI:updateUI()
 	end
 end
 
