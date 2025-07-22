@@ -3,7 +3,7 @@
 ## Notes: Automatically detects millable herbs and displays estimated profit
 ## Author: Limitedby
 ## OptionalDeps: LibStub, LibDataBroker-1.1, LibDBIcon-1.0
-## Version: 1.0.2
+## Version: 1.0.3
 
 libs\LibDBIcon-1.0\LibStub\LibStub.lua
 libs\LibDBIcon-1.0\LibDataBroker-1.1\LibDataBroker-1.1.lua
