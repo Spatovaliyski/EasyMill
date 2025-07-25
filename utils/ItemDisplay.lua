@@ -263,6 +263,38 @@ function ItemDisplay:createItemBox(id, data, xPos, yPos)
 		end
 	end
 
+	-- Helper function to sort herb stacks (move larger stacks first)
+	local function sortHerbStacks(herbID)
+		if not herbID then
+			return {}
+		end
+
+		-- Find all stacks of this herb
+		local stacks = {}
+		for bagID = 0, 4 do
+			for slotID = 1, C_Container.GetContainerNumSlots(bagID) do
+				local itemID = C_Container.GetContainerItemID(bagID, slotID)
+				if itemID == herbID then
+					local itemInfo = C_Container.GetContainerItemInfo(bagID, slotID)
+					if itemInfo then
+						table.insert(stacks, {
+							bagID = bagID,
+							slotID = slotID,
+							stackCount = itemInfo.stackCount,
+						})
+					end
+				end
+			end
+		end
+
+		-- Sort stacks by size (largest first)
+		table.sort(stacks, function(a, b)
+			return a.stackCount > b.stackCount
+		end)
+
+		return stacks
+	end
+
 	-- Only show Mill button if we have enough herbs AND not in test mode
 	if data.count >= 5 and not (TestData and TestData.testMode) then
 		local btn = CreateFrame("Button", nil, item, "SecureActionButtonTemplate")
@@ -270,9 +302,24 @@ function ItemDisplay:createItemBox(id, data, xPos, yPos)
 		btn:SetPoint("BOTTOMRIGHT", -5, 5)
 
 		btn:SetAttribute("type", "macro")
-		local macroText = string.format("/cast Milling\n/use item:%d", id)
-		btn:SetAttribute("macrotext", macroText)
 
+		-- Get sorted stacks and create macro targeting largest stacks first
+		local stacks = sortHerbStacks(id)
+		local macroLines = { "/cast Milling" }
+
+		for _, stack in ipairs(stacks) do
+			if stack.stackCount >= 5 then
+				table.insert(macroLines, string.format("/use %d %d", stack.bagID, stack.slotID))
+			end
+		end
+
+		-- Fallback to generic item usage if no specific stacks found
+		if #macroLines == 1 then
+			table.insert(macroLines, string.format("/use item:%d", id))
+		end
+
+		local macroText = table.concat(macroLines, "\n")
+		btn:SetAttribute("macrotext", macroText)
 		btn:SetScript("PostClick", function(self, button)
 			if button == "LeftButton" and CastBar then
 				CastBar:startMilling(item, id)
