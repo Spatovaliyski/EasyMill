@@ -116,17 +116,35 @@ function MainFrame:createScrollFrame()
 	self.scrollChild = scrollChild
 end
 
--- Function to update autoloot checkbox state
-function MainFrame:updateAutolootCheckbox()
-	if AutoLoot and AutoLoot.updateCheckboxState then
-		AutoLoot:updateCheckboxState()
-	end
+function MainFrame:createSettingsButton(dropdown)
+	local button = CreateFrame("Button", "EasyMillSettingsButton", self.frame, "UIPanelButtonTemplate")
+	button:SetSize(64, 24)
+	button:SetPoint("RIGHT", dropdown, "LEFT", 12, 2)
+	button:SetText("Settings")
+
+	button:SetScript("OnClick", function()
+		if SettingsFrame then
+			SettingsFrame:toggle(self.frame)
+		end
+	end)
+
+	button:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+		GameTooltip:SetText("Settings", 1, 1, 1)
+		GameTooltip:AddLine("Click to open EasyMill settings", 0.7, 0.7, 0.7, true)
+		GameTooltip:Show()
+	end)
+
+	button:SetScript("OnLeave", function()
+		GameTooltip:Hide()
+	end)
+
+	self.settingsButton = button
 end
 
--- Show the main frame and update checkbox
+-- Show the main frame
 function MainFrame:showFrame()
 	self.frame:Show()
-	self:updateAutolootCheckbox()
 	if ItemDisplay then
 		ItemDisplay:updateUI()
 	end
