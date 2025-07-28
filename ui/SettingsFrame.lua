@@ -1,4 +1,6 @@
-local SettingsFrame = {}
+local SettingsFrame = {
+	width = 320,
+}
 
 local function initializeSettings()
 	if not EasyMillDB then
@@ -7,6 +9,10 @@ local function initializeSettings()
 
 	if EasyMillDB.showPigments == nil then
 		EasyMillDB.showPigments = true
+	end
+
+	if EasyMillDB.sortAscending == nil then
+		EasyMillDB.sortAscending = true
 	end
 end
 
@@ -18,7 +24,7 @@ function SettingsFrame:create(parentFrame)
 	initializeSettings()
 
 	self.frame = CreateFrame("Frame", "EasyMillSettingsFrame", UIParent, "BasicFrameTemplateWithInset")
-	self.frame:SetSize(400, 350)
+	self.frame:SetSize(360, 425)
 	self.frame:SetFrameStrata("HIGH")
 	self.frame:SetFrameLevel(110)
 	self.frame:Hide()
@@ -69,14 +75,14 @@ function SettingsFrame:createSettingsContent()
 	-- Auto-loot description
 	local autoLootDesc = self.frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 	autoLootDesc:SetPoint("TOPLEFT", autoLootLabel, "BOTTOMLEFT", 0, -5)
-	autoLootDesc:SetWidth(350)
+	autoLootDesc:SetWidth(SettingsFrame.width)
 	autoLootDesc:SetJustifyH("LEFT")
 	autoLootDesc:SetText(
 		"Controls your character's auto-loot behavior. When enabled, you automatically loot items without clicking."
 	)
 	autoLootDesc:SetTextColor(0.7, 0.7, 0.7)
 
-	yOffset = yOffset - 70
+	yOffset = yOffset - 60
 
 	-- Show pigments option
 	local pigmentLabel = self.frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -99,10 +105,60 @@ function SettingsFrame:createSettingsContent()
 	-- Pigment description
 	local pigmentDesc = self.frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 	pigmentDesc:SetPoint("TOPLEFT", pigmentLabel, "BOTTOMLEFT", 0, -5)
-	pigmentDesc:SetWidth(350)
+	pigmentDesc:SetWidth(SettingsFrame.width)
 	pigmentDesc:SetJustifyH("LEFT")
 	pigmentDesc:SetText("Shows which pigments each herb produces when milled, displayed below the herb information.")
 	pigmentDesc:SetTextColor(0.7, 0.7, 0.7)
+
+	yOffset = yOffset - 60
+
+	-- Sort order option
+	local sortLabel = self.frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	sortLabel:SetPoint("TOPLEFT", self.frame, "TOPLEFT", leftMargin, yOffset)
+	sortLabel:SetText("Expansion Sort Order:")
+	sortLabel:SetTextColor(1, 0.82, 0) -- Gold color
+
+	-- Create dropdown for sort order
+	local sortDropdown = CreateFrame("Frame", "EasyMillSortDropdown", self.frame, "UIDropDownMenuTemplate")
+	sortDropdown:SetPoint("LEFT", sortLabel, "RIGHT", 10, -2)
+	UIDropDownMenu_SetWidth(sortDropdown, 65)
+
+	local function sortDropdown_OnClick(self, arg1, arg2, checked)
+		EasyMillDB.sortAscending = (arg1 == "ascending")
+		UIDropDownMenu_SetSelectedID(sortDropdown, self:GetID())
+		if ItemDisplay and ItemDisplay.updateUI then
+			ItemDisplay:updateUI()
+		end
+	end
+
+	local function sortDropdown_Initialize(self, level)
+		local info = UIDropDownMenu_CreateInfo()
+
+		info.text = "Oldest First"
+		info.value = "ascending"
+		info.func = sortDropdown_OnClick
+		info.arg1 = "ascending"
+		info.checked = EasyMillDB.sortAscending == true
+		UIDropDownMenu_AddButton(info, level)
+
+		info.text = "Newest First"
+		info.value = "descending"
+		info.func = sortDropdown_OnClick
+		info.arg1 = "descending"
+		info.checked = EasyMillDB.sortAscending == false
+		UIDropDownMenu_AddButton(info, level)
+	end
+
+	UIDropDownMenu_Initialize(sortDropdown, sortDropdown_Initialize)
+	UIDropDownMenu_SetSelectedValue(sortDropdown, EasyMillDB.sortAscending and "ascending" or "descending")
+
+	-- Sort description
+	local sortDesc = self.frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+	sortDesc:SetPoint("TOPLEFT", sortLabel, "BOTTOMLEFT", 0, -10)
+	sortDesc:SetWidth(SettingsFrame.width)
+	sortDesc:SetJustifyH("LEFT")
+	sortDesc:SetText("Controls the order in which expansions are displayed in the main interface.")
+	sortDesc:SetTextColor(0.7, 0.7, 0.7)
 
 	yOffset = yOffset - 70
 
@@ -115,7 +171,7 @@ function SettingsFrame:createSettingsContent()
 	-- macro setup instructions
 	local macroInstructions = self.frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 	macroInstructions:SetPoint("TOPLEFT", macroLabel, "BOTTOMLEFT", 0, -10)
-	macroInstructions:SetWidth(350)
+	macroInstructions:SetWidth(SettingsFrame.width)
 	macroInstructions:SetJustifyH("LEFT")
 	macroInstructions:SetText(
 		'The macro is Auto-set by the addon. To use it, simply go to your Macros menu and find "EasyMill_LastHerb", which you can drag to your action bar.\n\n'
@@ -136,6 +192,7 @@ function SettingsFrame:createSettingsContent()
 
 	self.autoLootCheckbox = autoLootCheckbox
 	self.pigmentCheckbox = pigmentCheckbox
+	self.sortDropdown = sortDropdown
 	self.macroInstructions = macroInstructions
 end
 
@@ -157,6 +214,9 @@ function SettingsFrame:show(parentFrame)
 	end
 	if self.pigmentCheckbox then
 		self.pigmentCheckbox:SetChecked(EasyMillDB.showPigments)
+	end
+	if self.sortDropdown then
+		UIDropDownMenu_SetSelectedValue(self.sortDropdown, EasyMillDB.sortAscending and "ascending" or "descending")
 	end
 
 	self.frame:Show()

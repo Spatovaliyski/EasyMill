@@ -394,11 +394,11 @@ function ItemDisplay:updateUI()
 
 	-- Organize items by expansion using existing data
 	local expansions = {
-		{ name = "Vanilla", items = {} },
-		{ name = "The Burning Crusade", items = {} },
-		{ name = "Wrath of the Lich King", items = {} },
-		{ name = "Cataclysm", items = {} },
-		{ name = "Mists of Pandaria", items = {} },
+		{ name = "Vanilla", items = {}, order = 1 },
+		{ name = "The Burning Crusade", items = {}, order = 2 },
+		{ name = "Wrath of the Lich King", items = {}, order = 3 },
+		{ name = "Cataclysm", items = {}, order = 4 },
+		{ name = "Mists of Pandaria", items = {}, order = 5 },
 	}
 
 	-- Include ALL herbs, not just ones in bags
@@ -413,6 +413,24 @@ function ItemDisplay:updateUI()
 				end
 			end
 		end
+	end
+
+	-- Sort expansions based on user preference
+	local sortAscending = true
+	if EasyMillDB and EasyMillDB.sortAscending ~= nil then
+		sortAscending = EasyMillDB.sortAscending
+	end
+
+	if sortAscending then
+		-- Ascending: Vanilla first (order 1, 2, 3, 4, 5)
+		table.sort(expansions, function(a, b)
+			return a.order < b.order
+		end)
+	else
+		-- Descending: Newest first (order 5, 4, 3, 2, 1)
+		table.sort(expansions, function(a, b)
+			return a.order > b.order
+		end)
 	end
 
 	for _, expansion in ipairs(expansions) do
