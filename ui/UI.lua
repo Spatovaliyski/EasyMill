@@ -3,19 +3,11 @@ local EasyMillUI = {}
 
 -- Initialize UI when loaded
 function EasyMillUI:initialize()
-	-- Create main frame
 	MainFrame:create()
-
-	-- Create notice text
 	NoticeText:createNotice(MainFrame.frame)
-
-	-- Create test data dropdown
 	local dropdown = TestData:createDropdown(MainFrame.frame)
 
-	-- Create settings button (where auto-loot checkbox used to be)
 	MainFrame:createSettingsButton(dropdown)
-
-	-- Setup cast events
 	CastBar:setupCastEvents()
 end
 
