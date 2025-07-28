@@ -3,6 +3,7 @@ local ItemDisplay = {}
 
 -- UI Elements
 local buttons = {}
+local millButtons = {} -- Store mill buttons by itemID for keybind access
 
 -- Helper function to get primary pigments for an herb
 local function getPrimaryPigments(herbID)
@@ -76,6 +77,7 @@ function ItemDisplay:clearButtons()
 		b:Hide()
 	end
 	table.wipe(buttons)
+	table.wipe(millButtons)
 end
 
 -- Create expansion header
@@ -87,6 +89,38 @@ function ItemDisplay:createExpansionHeader(name, yOffset)
 
 	table.insert(buttons, header)
 	return header
+end
+
+-- Helper function to sort herb stacks (move larger stacks first)
+function ItemDisplay:sortHerbStacks(herbID)
+	if not herbID then
+		return {}
+	end
+
+	-- Find all stacks of this herb
+	local stacks = {}
+	for bagID = 0, 4 do
+		for slotID = 1, C_Container.GetContainerNumSlots(bagID) do
+			local itemID = C_Container.GetContainerItemID(bagID, slotID)
+			if itemID == herbID then
+				local itemInfo = C_Container.GetContainerItemInfo(bagID, slotID)
+				if itemInfo then
+					table.insert(stacks, {
+						bagID = bagID,
+						slotID = slotID,
+						count = itemInfo.stackCount,
+					})
+				end
+			end
+		end
+	end
+
+	-- Sort stacks by size (largest first)
+	table.sort(stacks, function(a, b)
+		return a.count > b.count
+	end)
+
+	return stacks
 end
 
 -- Create a compact item box
@@ -213,51 +247,54 @@ function ItemDisplay:createItemBox(id, data, xPos, yPos)
 	end
 
 	-- Add pigment display (to the left of where Mill button will be)
-	local pigments = getPrimaryPigments(id)
-	if #pigments > 0 then
-		local pigmentContainer = CreateFrame("Frame", nil, item)
-		pigmentContainer:SetSize(90, 20)
-		pigmentContainer:SetPoint("BOTTOMLEFT", item, "BOTTOMLEFT", 5, 5)
+	-- Only show if setting is enabled
+	if not EasyMillDB or EasyMillDB.showPigments ~= false then
+		local pigments = getPrimaryPigments(id)
+		if #pigments > 0 then
+			local pigmentContainer = CreateFrame("Frame", nil, item)
+			pigmentContainer:SetSize(90, 20)
+			pigmentContainer:SetPoint("BOTTOMLEFT", item, "BOTTOMLEFT", 5, 5)
 
-		local xOffset = 0
-		for i, pigment in ipairs(pigments) do
-			-- Get pigment info
-			local pigmentName, pigmentLink, _, _, _, _, _, _, _, pigmentIcon = GetItemInfo(pigment.id)
+			local xOffset = 0
+			for i, pigment in ipairs(pigments) do
+				-- Get pigment info
+				local pigmentName, pigmentLink, _, _, _, _, _, _, _, pigmentIcon = GetItemInfo(pigment.id)
 
-			if pigmentIcon then
-				-- Create pigment icon
-				local pigmentButton = CreateFrame("Button", nil, pigmentContainer)
-				pigmentButton:SetSize(18, 18)
-				pigmentButton:SetPoint("LEFT", xOffset, 0)
-				pigmentButton:EnableMouse(true)
+				if pigmentIcon then
+					-- Create pigment icon
+					local pigmentButton = CreateFrame("Button", nil, pigmentContainer)
+					pigmentButton:SetSize(18, 18)
+					pigmentButton:SetPoint("LEFT", xOffset, 0)
+					pigmentButton:EnableMouse(true)
 
-				local pigmentIconTexture = pigmentButton:CreateTexture(nil, "ARTWORK")
-				pigmentIconTexture:SetAllPoints()
-				pigmentIconTexture:SetTexture(pigmentIcon)
+					local pigmentIconTexture = pigmentButton:CreateTexture(nil, "ARTWORK")
+					pigmentIconTexture:SetAllPoints()
+					pigmentIconTexture:SetTexture(pigmentIcon)
 
-				-- Add tooltip for pigment
-				pigmentButton:SetScript("OnEnter", function(self)
-					GameTooltip:SetOwner(self, "ANCHOR_TOP")
-					if pigmentLink then
-						GameTooltip:SetHyperlink(pigmentLink)
-					else
-						GameTooltip:SetItemByID(pigment.id)
+					-- Add tooltip for pigment
+					pigmentButton:SetScript("OnEnter", function(self)
+						GameTooltip:SetOwner(self, "ANCHOR_TOP")
+						if pigmentLink then
+							GameTooltip:SetHyperlink(pigmentLink)
+						else
+							GameTooltip:SetItemByID(pigment.id)
+						end
+						GameTooltip:AddLine(string.format("Drop Rate: %.1f%%", pigment.dropRate or 0), 1, 1, 1)
+						if pigment.amounts and #pigment.amounts > 0 then
+							GameTooltip:AddLine(string.format("Amount: 1-%d", #pigment.amounts), 0.8, 0.8, 0.8)
+						end
+						GameTooltip:Show()
+					end)
+
+					pigmentButton:SetScript("OnLeave", function(self)
+						GameTooltip:Hide()
+					end)
+
+					xOffset = xOffset + 20 -- icon + small gap
+
+					if i >= 4 or xOffset > 72 then
+						break
 					end
-					GameTooltip:AddLine(string.format("Drop Rate: %.1f%%", pigment.dropRate or 0), 1, 1, 1)
-					if pigment.amounts and #pigment.amounts > 0 then
-						GameTooltip:AddLine(string.format("Amount: 1-%d", #pigment.amounts), 0.8, 0.8, 0.8)
-					end
-					GameTooltip:Show()
-				end)
-
-				pigmentButton:SetScript("OnLeave", function(self)
-					GameTooltip:Hide()
-				end)
-
-				xOffset = xOffset + 20 -- icon + small gap
-
-				if i >= 4 or xOffset > 72 then
-					break
 				end
 			end
 		end
@@ -265,34 +302,7 @@ function ItemDisplay:createItemBox(id, data, xPos, yPos)
 
 	-- Helper function to sort herb stacks (move larger stacks first)
 	local function sortHerbStacks(herbID)
-		if not herbID then
-			return {}
-		end
-
-		-- Find all stacks of this herb
-		local stacks = {}
-		for bagID = 0, 4 do
-			for slotID = 1, C_Container.GetContainerNumSlots(bagID) do
-				local itemID = C_Container.GetContainerItemID(bagID, slotID)
-				if itemID == herbID then
-					local itemInfo = C_Container.GetContainerItemInfo(bagID, slotID)
-					if itemInfo then
-						table.insert(stacks, {
-							bagID = bagID,
-							slotID = slotID,
-							stackCount = itemInfo.stackCount,
-						})
-					end
-				end
-			end
-		end
-
-		-- Sort stacks by size (largest first)
-		table.sort(stacks, function(a, b)
-			return a.stackCount > b.stackCount
-		end)
-
-		return stacks
+		return ItemDisplay:sortHerbStacks(herbID)
 	end
 
 	-- Only show Mill button if we have enough herbs AND not in test mode
@@ -308,7 +318,7 @@ function ItemDisplay:createItemBox(id, data, xPos, yPos)
 		local macroLines = { "/cast Milling" }
 
 		for _, stack in ipairs(stacks) do
-			if stack.stackCount >= 5 then
+			if stack.count >= 5 then
 				table.insert(macroLines, string.format("/use %d %d", stack.bagID, stack.slotID))
 			end
 		end
@@ -322,10 +332,19 @@ function ItemDisplay:createItemBox(id, data, xPos, yPos)
 		btn:SetAttribute("macrotext", macroText)
 		btn:SetScript("PostClick", function(self, button)
 			if button == "LeftButton" and CastBar then
+				-- Track the last pressed herb for keybind functionality
+				if EasyMill and EasyMill.setLastPressedHerb then
+					EasyMill:setLastPressedHerb(id)
+				end
+
+				-- Create/update the keybind macro for this herb using MacroManager
+				if MacroManager then
+					MacroManager:createKeybindMacro(id)
+				end
+
 				CastBar:startMilling(item, id)
 			end
 		end)
-
 		local ntex = btn:CreateTexture()
 		ntex:SetTexture("Interface/Buttons/UI-Panel-Button-Up")
 		ntex:SetTexCoord(0, 0.625, 0, 0.6875)
@@ -375,11 +394,11 @@ function ItemDisplay:updateUI()
 
 	-- Organize items by expansion using existing data
 	local expansions = {
-		{ name = "Vanilla", items = {} },
-		{ name = "The Burning Crusade", items = {} },
-		{ name = "Wrath of the Lich King", items = {} },
-		{ name = "Cataclysm", items = {} },
-		{ name = "Mists of Pandaria", items = {} },
+		{ name = "Vanilla", items = {}, order = 1 },
+		{ name = "The Burning Crusade", items = {}, order = 2 },
+		{ name = "Wrath of the Lich King", items = {}, order = 3 },
+		{ name = "Cataclysm", items = {}, order = 4 },
+		{ name = "Mists of Pandaria", items = {}, order = 5 },
 	}
 
 	-- Include ALL herbs, not just ones in bags
@@ -394,6 +413,24 @@ function ItemDisplay:updateUI()
 				end
 			end
 		end
+	end
+
+	-- Sort expansions based on user preference
+	local sortAscending = true
+	if EasyMillDB and EasyMillDB.sortAscending ~= nil then
+		sortAscending = EasyMillDB.sortAscending
+	end
+
+	if sortAscending then
+		-- Ascending: Vanilla first (order 1, 2, 3, 4, 5)
+		table.sort(expansions, function(a, b)
+			return a.order < b.order
+		end)
+	else
+		-- Descending: Newest first (order 5, 4, 3, 2, 1)
+		table.sort(expansions, function(a, b)
+			return a.order > b.order
+		end)
 	end
 
 	for _, expansion in ipairs(expansions) do
@@ -421,6 +458,25 @@ function ItemDisplay:updateUI()
 
 	local totalHeight = math.abs(currentY) + 20
 	MainFrame.scrollChild:SetHeight(totalHeight)
+end
+
+-- Function to mill a specific herb (used by keybind)
+function ItemDisplay:millHerb(itemID)
+	if not itemID then
+		return
+	end
+
+	local data = EasyMill.itemData[itemID]
+	if not data or data.count < 5 then
+		local itemName = C_Item.GetItemNameByID(itemID) or "Unknown Herb"
+		print("EasyMill: Not enough " .. itemName .. " to mill (need 5, have " .. (data and data.count or 0) .. ")")
+		return
+	end
+
+	-- Use MacroManager to execute the keybind macro
+	if MacroManager then
+		MacroManager:executeKeybindMacro()
+	end
 end
 
 -- Export the module

@@ -3,33 +3,17 @@ local EasyMillUI = {}
 
 -- Initialize UI when loaded
 function EasyMillUI:initialize()
-	-- Create main frame
 	MainFrame:create()
-
-	-- Create notice text
 	NoticeText:createNotice(MainFrame.frame)
-
-	-- Create test data dropdown
 	local dropdown = TestData:createDropdown(MainFrame.frame)
 
-	-- Create autoloot checkbox
-	AutoLoot:createCheckbox(MainFrame.frame, dropdown)
-
-	-- Setup cast events
+	MainFrame:createSettingsButton(dropdown)
 	CastBar:setupCastEvents()
 end
 
--- Function to update autoloot checkbox state
-function EasyMillUI:updateAutolootCheckbox()
-	if AutoLoot then
-		AutoLoot:updateCheckboxState()
-	end
-end
-
--- Show the main frame and update checkbox
+-- Show the main frame
 function EasyMillUI:showFrame()
 	MainFrame.frame:Show()
-	self:updateAutolootCheckbox()
 	self:updateUI()
 end
 
